@@ -1,0 +1,32 @@
+import express from 'express'
+import { randomUUID } from 'node:crypto'
+import { users, accounts } from './users.js'
+
+const sessions = new Map<string, string>() // token -> userId
+
+export function createApp() {
+  const app = express()
+  app.use(express.json())
+
+  app.post('/login', (req, res) => {
+    const { username, password } = req.body ?? {}
+    const user = users.find(candidate => candidate.username === username && candidate.password === password)
+    if (!user) return res.status(401).json({ error: 'Invalid credentials' })
+    const token = randomUUID()
+    sessions.set(token, user.id)
+    res.json({ token })
+  })
+
+  app.get('/accounts/:id', (req, res) => {
+    const token = req.header('authorization')?.replace(/^Bearer\s+/i, '')
+    const userId = token ? sessions.get(token) : undefined
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' })
+
+    const account = accounts.find(candidate => candidate.id === req.params.id)
+    if (!account) return res.status(404).json({ error: 'Account not found' })
+
+    res.json(account)
+  })
+
+  return app
+}
