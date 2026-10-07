@@ -24,6 +24,7 @@ export function createApp() {
 
     const account = accounts.find(candidate => candidate.id === req.params.id)
     if (!account) return res.status(404).json({ error: 'Account not found' })
+    if (account.ownerId !== userId) return res.status(403).json({ error: 'Forbidden' })
 
     res.json(account)
   })
