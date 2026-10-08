@@ -1,6 +1,7 @@
 import express from 'express'
 import { randomUUID } from 'node:crypto'
 import { users, accounts } from './users.js'
+import { logAccessDenied } from './audit.js'
 
 const sessions = new Map<string, string>() // token -> userId
 
@@ -24,6 +25,13 @@ export function createApp() {
 
     const account = accounts.find(candidate => candidate.id === req.params.id)
     if (!account) return res.status(404).json({ error: 'Account not found' })
+
+    // SEC-101: being logged in is not enough — callers may only read accounts they own,
+    // otherwise any user could read another user's balance just by changing the id.
+    if (account.ownerId !== userId) {
+      logAccessDenied({ actorId: userId, resource: `accounts/${account.id}`, reason: 'not account owner' })
+      return res.status(403).json({ error: 'Forbidden' })
+    }
 
     res.json(account)
   })
