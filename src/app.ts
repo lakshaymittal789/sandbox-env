@@ -1,6 +1,7 @@
 import express from 'express'
 import { randomUUID } from 'node:crypto'
 import { users, accounts } from './users.js'
+import { logAccessDenied } from './audit.js'
 
 const sessions = new Map<string, string>() // token -> userId
 
@@ -17,6 +18,10 @@ export function createApp() {
     res.json({ token })
   })
 
+  /**
+   * Returns an account only to its owner. No valid session token -> 401; unknown id -> 404;
+   * an account owned by another user -> 403, recorded via logAccessDenied (SEC-101).
+   */
   app.get('/accounts/:id', (req, res) => {
     const token = req.header('authorization')?.replace(/^Bearer\s+/i, '')
     const userId = token ? sessions.get(token) : undefined
@@ -24,6 +29,11 @@ export function createApp() {
 
     const account = accounts.find(candidate => candidate.id === req.params.id)
     if (!account) return res.status(404).json({ error: 'Account not found' })
+
+    if (account.ownerId !== userId) {
+      logAccessDenied({ actorId: userId, resource: `account:${account.id}`, reason: 'not_owner' })
+      return res.status(403).json({ error: 'Forbidden' })
+    }
 
     res.json(account)
   })
