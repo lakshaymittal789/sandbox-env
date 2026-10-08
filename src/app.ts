@@ -1,6 +1,7 @@
 import express from 'express'
 import { randomUUID } from 'node:crypto'
 import { users, accounts } from './users.js'
+import { logAccessDenied } from './audit.js'
 
 const sessions = new Map<string, string>() // token -> userId
 
@@ -24,6 +25,13 @@ export function createApp() {
 
     const account = accounts.find(candidate => candidate.id === req.params.id)
     if (!account) return res.status(404).json({ error: 'Account not found' })
+
+    // SEC-101: a valid session only proves who the caller is, not that they own this account.
+    // Without this check any logged-in user could read any account by guessing its id.
+    if (account.ownerId !== userId) {
+      logAccessDenied({ actorId: userId, resource: `account:${account.id}`, reason: 'not_owner' })
+      return res.status(403).json({ error: 'Forbidden' })
+    }
 
     res.json(account)
   })
