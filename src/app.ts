@@ -2,12 +2,17 @@ import express from 'express'
 import { randomUUID } from 'node:crypto'
 import { users, accounts } from './users.js'
 import { logAccessDenied } from './audit.js'
+import { loginPageHtml } from './loginPage.js'
 
 const sessions = new Map<string, string>() // token -> userId
 
 export function createApp() {
   const app = express()
   app.use(express.json())
+
+  app.get('/login', (_req, res) => {
+    res.type('html').send(loginPageHtml)
+  })
 
   app.post('/login', (req, res) => {
     const { username, password } = req.body ?? {}
