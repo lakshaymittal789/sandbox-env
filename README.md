@@ -3,6 +3,7 @@
 A small internal service exposing account balances behind a session-token login.
 
 ```
+GET  /login            HTML login page (client-side validation only)
 POST /login           { username, password } -> { token }
 GET  /accounts/:id     Authorization: Bearer <token> -> account
 ```
